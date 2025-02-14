@@ -1,0 +1,15 @@
+{
+	"spam": [
+		"Make money fast!",
+		"Click here for a special offer",
+		"You have won a prize!",
+		"Get rich quick schemes",
+		"Mir khan"
+	],
+	"not_spam": [
+		"How are you doing?",
+		"Let's meet for lunch tomorrow.",
+		"Here is the report you requested.",
+		"Thank you for your help."
+	]
+}

@@ -1,0 +1,61 @@
+{
+	"_events": {},
+	"_eventsCount": 0,
+	"classifier": {
+		"classFeatures": {
+			"spam": {
+				"0": 2,
+				"1": 2,
+				"2": 2,
+				"3": 2,
+				"4": 2,
+				"5": 2,
+				"6": 2,
+				"7": 2,
+				"8": 2,
+				"9": 2,
+				"10": 2,
+				"11": 2
+			},
+			"not_spam": { "12": 2, "13": 2, "14": 2, "15": 2, "16": 2, "17": 2, "18": 2, "19": 2 }
+		},
+		"classTotals": { "spam": 6, "not_spam": 4 },
+		"totalExamples": 9,
+		"smoothing": 1
+	},
+	"docs": [
+		{ "label": "spam", "text": ["monei", "fast"] },
+		{ "label": "spam", "text": ["click", "special", "offer"] },
+		{ "label": "spam", "text": ["won", "prize"] },
+		{ "label": "spam", "text": ["rich", "quick", "scheme"] },
+		{ "label": "spam", "text": ["mir", "khan"] },
+		{ "label": "not_spam", "text": ["let'", "meet", "lunch", "tomorrow"] },
+		{ "label": "not_spam", "text": ["report", "request"] },
+		{ "label": "not_spam", "text": ["thank", "help"] }
+	],
+	"features": {
+		"monei": 1,
+		"fast": 1,
+		"click": 1,
+		"special": 1,
+		"offer": 1,
+		"won": 1,
+		"prize": 1,
+		"rich": 1,
+		"quick": 1,
+		"scheme": 1,
+		"mir": 1,
+		"khan": 1,
+		"let'": 1,
+		"meet": 1,
+		"lunch": 1,
+		"tomorrow": 1,
+		"report": 1,
+		"request": 1,
+		"thank": 1,
+		"help": 1
+	},
+	"stemmer": {},
+	"lastAdded": 8,
+	"Threads": null
+}
