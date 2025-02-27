@@ -15,9 +15,17 @@ const packageEssayController = {
 
             const order = orderBy === "newest" ? -1 : 1;
 
-            const packageEssays = await PackageEssay.find(filter)
+            let packageEssays = await PackageEssay.find(filter)
                 .sort({ createdAt: order })
                 .populate('packageId', 'packageName');
+
+            // Modify the packageId field if the package is not found
+            packageEssays = packageEssays.map(essay => {
+                if (!essay.packageId) {
+                    essay.packageId = { packageName: "Not Found or deleted", _id: "" };
+                }
+                return essay;
+            });
 
             res.status(200).json({ status: true, data: packageEssays });
         } catch (error) {

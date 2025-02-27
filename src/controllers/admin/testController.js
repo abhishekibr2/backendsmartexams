@@ -3,6 +3,8 @@ const Test = require("../../models/test");
 const Package = require("../../models/packageModel");
 const catchErrors = require("../../middleware/catchErrors");
 const ReportProblem = require("../../models/ReportProblem");
+const TestAttemptFeedback = require("../../models/testAttemptFeedBack");
+
 const mongoose = require('mongoose');
 
 const testController = {
@@ -383,8 +385,14 @@ const testController = {
                 orderedQuestions.push(...test.questions, ...test.comprehensions);
             }
 
+            let totalAddedQuestion = test.questions.length;
+
+            test.questions.length + test.comprehensions.map((item) => {
+                totalAddedQuestion += item.questionId.length
+            })
             test.questions = orderedQuestions;
             test.questionCount = questionCount;
+            test.totalAddedQuestion = totalAddedQuestion;
 
             return res.status(200).json({
                 success: true,
@@ -486,13 +494,14 @@ const testController = {
     }),
 
     reportProblem: catchErrors(async (req, res) => {
-        const { testId, userId, issueType, description } = req.body;
+        const { testId, userId, issueType, description, questionId } = req.body;
 
         const newReport = new ReportProblem({
             testId,
             userId,
             issueType,
             description,
+            questionId,
         });
 
         await newReport.save();
@@ -502,6 +511,33 @@ const testController = {
             message: 'Your report has been submitted successfully!',
             data: newReport,
         });
+    }),
+
+    getAllTestFeedback: catchErrors(async (req, res) => {
+        try {
+            const { testId } = req.body;
+            let query;
+            if (testId) {
+                query = { testId };
+            }
+            const testFeedbacks = await TestAttemptFeedback.find(query)
+                .sort({ createdAt: -1 })
+                .populate('testId', 'testName testDisplayName')
+                .populate('testAttemptId').populate('userId', 'name lastName email');
+            const allTest = await Test.find().select('testName');
+            return res.status(200).json({
+                success: true,
+                message: 'Test feedback retrieved successfully.',
+                data: { testFeedbacks, allTest },
+            });
+        } catch (error) {
+            console.error('Error fetching test feedback:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'An error occurred while fetching test feedback.',
+                error: error.message,
+            });
+        }
     })
 
 };

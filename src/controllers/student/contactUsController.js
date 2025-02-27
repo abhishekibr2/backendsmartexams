@@ -8,7 +8,8 @@ const contactUsController = {
         try {
             const { userId } = req.params;
             const contactUs = await ContactUs.findOne({
-                'messages.senderId': userId
+                // 'messages.senderId': userId
+                createdBy: userId
             }).populate('messages.senderId', 'image name');
 
             const admin = await User.findOne({ role: 'admin' }, 'name email image');

@@ -3,9 +3,7 @@ const { createUpload } = require('../../utils/multerConfig');
 
 const whyChooseUsController = {
     addSectionOne: async (req, res) => {
-
         const upload = createUpload('WhyChoseUsIcons');
-
         upload.fields([
             { name: 'IconOne', maxCount: 1 },
             { name: 'IconTwo', maxCount: 1 },
@@ -54,10 +52,10 @@ const whyChooseUsController = {
                     coreHeading,
                 } = req.body;
 
-                const IconOne = req.files && req.files.IconOne ? req.files.IconOne[0].filename : req.body.IconOne;
-                const IconTwo = req.files && req.files.IconTwo ? req.files.IconTwo[0].filename : req.body.IconTwo;
-                const IconThree = req.files && req.files.IconThree ? req.files.IconThree[0].filename : req.body.IconThree;
-                const IconFour = req.files && req.files.IconFour ? req.files.IconFour[0].filename : req.body.IconFour;
+                const IconOne = req.files && req.files.IconOne ? req.files.IconOne[0].filename : req.body.IconOne === 'undefined' || req.body.IconOne === undefined ? null : req.body.IconOne;
+                const IconTwo = req.files && req.files.IconTwo ? req.files.IconTwo[0].filename : req.body.IconTwo === 'undefined' || req.body.IconTwo === undefined ? null : req.body.IconTwo;
+                const IconThree = req.files && req.files.IconThree ? req.files.IconThree[0].filename : req.body.IconThree === 'undefined' || req.body.IconThree === undefined ? null : req.body.IconThree;
+                const IconFour = req.files && req.files.IconFour ? req.files.IconFour[0].filename : req.body.IconFour === 'undefined' || req.body.IconFour === undefined ? null : req.body.IconFour;
 
                 const sectionData = {
                     heading,

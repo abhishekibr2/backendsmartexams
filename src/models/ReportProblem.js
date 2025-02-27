@@ -7,9 +7,14 @@ const reportProblemSchema = new mongoose.Schema(
             ref: 'Test',
             required: true
         },
+        questionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Question',
+            required: true
+        },
         userId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
+            ref: 'users',
             required: true
         },
         issueType: {

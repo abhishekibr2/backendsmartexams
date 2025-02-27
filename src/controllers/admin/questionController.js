@@ -20,13 +20,17 @@ const createOrUpdateQuestion = async (req, res) => {
             testId
         } = req.body;
 
-        const test = await Test.findById(testId);
+        const tests = await Test.find({ _id: { $in: [testId] } });
 
-        if (test) {
+        const testsExceedingMaxQuestions = tests.filter(test =>
+            test.questionOrder.length >= test.maxQuestions
+        );
+
+        if (testsExceedingMaxQuestions.length > 0) {
             return res.status(200).json({
                 success: false,
                 message: 'Test have reached the maximum number of questions.',
-                data: test,
+                data: testsExceedingMaxQuestions.map(test => test._id),
             });
         }
 
@@ -280,10 +284,12 @@ const getAllQuestions = async (req, res) => {
         }
 
         if (filterQuery.addedTo && !isNaN(Date.parse(filterQuery.addedTo))) {
+            const addedToDate = new Date(filterQuery.addedTo);
+            addedToDate.setHours(23, 59, 59, 999); // Set the time to the end of the day
             if (!query.createdAt) {
                 query.createdAt = {};
             }
-            query.createdAt.$lte = new Date(filterQuery.addedTo);
+            query.createdAt.$lte = addedToDate;
         }
 
         if (filterQuery._id) {
@@ -306,8 +312,9 @@ const getAllQuestions = async (req, res) => {
                 .populate({
                     path: 'questionId',
                     populate: {
-                        path: 'complexityId subjectId gradeId examTypeId questionOptions',
-                    }
+                        path: 'complexityId subjectId gradeId examTypeId questionOptions'
+                    },
+                    options: { limit: limitInt }
                 })
                 .skip((pageInt - 1) * limitInt)
                 .limit(limitInt)
@@ -382,6 +389,7 @@ const getAllQuestions = async (req, res) => {
         );
 
         res.status(200).json({
+            limit,
             questions,
             currentPage: pageInt,
             totalPages: Math.ceil(totalQuestions / limitInt),
@@ -727,10 +735,12 @@ const searchQuestion = async (req, res) => {
 
         let trimmedQuestions;
         if (questions.length > 0) {
-            trimmedQuestions = questions.map(({ topic, subTopic }) => ({
-                topic: topic.trim(),
-                subTopic: subTopic.trim(),
-            }));
+            trimmedQuestions = questions
+                .filter(({ topic }) => topic && topic.trim() !== '')
+                .map(({ topic, subTopic }) => ({
+                    topic: topic.trim(),
+                    subTopic: subTopic ? subTopic.trim() : '',
+                }));
         } else {
             const defaultQuestions = await Question.aggregate([
                 {
@@ -756,22 +766,24 @@ const searchQuestion = async (req, res) => {
                 { $limit: 100 },
             ]);
 
-            trimmedQuestions = defaultQuestions.map(({ topic, subTopic }) => ({
-                topic: topic.trim(),
-                subTopic: subTopic.trim(),
-            }));
+            trimmedQuestions = defaultQuestions
+                .filter(({ topic }) => topic && topic.trim() !== '')
+                .map(({ topic, subTopic }) => ({
+                    topic: topic.trim(),
+                    subTopic: subTopic ? subTopic.trim() : '',
+                }));
         }
 
         res.status(200).json({
             success: true,
-            message: 'Tests fetched successfully.',
+            message: 'Topics fetched successfully.',
             data: trimmedQuestions,
         });
     } catch (error) {
-        console.error('Error finding tests with the specified question ID:', error);
+        console.error('Error finding Topics with the specified question ID:', error);
         res.status(500).json({
             success: false,
-            message: 'An error occurred while fetching tests.',
+            message: 'An error occurred while fetching Topics.',
             error: error.message,
         });
     }
@@ -807,6 +819,39 @@ const takeBulkOwnership = catchErrors(async (req, res) => {
     })
 })
 
+const updataQuestionTopic = catchErrors(async (req, res) => {
+    try {
+        const { type, topic, newTopic, subTopic, newSubtopic } = req.body;
+
+        let updatedQuestion;
+
+        if (type === "topic") {
+            updatedQuestion = await Question.updateMany(
+                { topic },
+                { topic: newTopic },
+                { new: true }
+            );
+        } else if (type === "subTopic") {
+            updatedQuestion = await Question.updateMany(
+                { subTopic },
+                { subTopic: newSubtopic },
+                { new: true }
+            );
+        } else {
+            return res.status(400).json({ message: "Invalid type. Use 'topic' or 'subTopic'." });
+        }
+
+        if (!updatedQuestion.modifiedCount) {
+            return res.status(404).json({ message: `${type} not found` });
+        }
+
+        res.status(200).json({ message: `${type} updated successfully`, updatedQuestion });
+    } catch (error) {
+        res.status(500).json({ message: `Internal server error`, error: error.message });
+    }
+});
+
+
 module.exports = {
     createOrUpdateQuestion,
     getAllQuestions,
@@ -820,5 +865,5 @@ module.exports = {
     searchQuestion,
     exportQuestion,
     takeOwnership,
-    takeBulkOwnership
+    takeBulkOwnership, updataQuestionTopic
 };

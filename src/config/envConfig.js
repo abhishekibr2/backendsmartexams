@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const dotenvExpand = require('dotenv-expand');
 
 // Load and expand environment variables
-const envPath = path.resolve(__dirname, '../../.env'); // Path to .env file
+const envPath = path.resolve(__dirname, '../../../.env'); // Path to .env file
 const envConfig = dotenv.config({ path: envPath });
 dotenvExpand.expand(envConfig);
 
