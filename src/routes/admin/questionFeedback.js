@@ -5,5 +5,6 @@ const questionFeedbackController = require("../../controllers/admin/questionFeed
 
 router.post("/question", questionFeedbackController.addFeedback);
 router.get('/getAllQuestionReport', questionFeedbackController.getAllQuestionsReport);
+router.post('/report-bugs', questionFeedbackController.getAllQuestionReportsBugs);
 
 module.exports = router;

@@ -20,8 +20,10 @@ const contactUsController = {
 		try {
 			const { createdBy } = req.params;
 			const contactUs = await ContactUs.findOne({
-				'messages.senderId': createdBy
-			}).populate('messages.senderId', 'image name');
+				// 'messages.senderId': createdBy
+				createdBy: createdBy
+			}).populate('messages.senderId', 'image name')
+				.populate('createdBy', 'image name email');
 			if (!contactUs) {
 				return res.status(404).json({
 					success: false,

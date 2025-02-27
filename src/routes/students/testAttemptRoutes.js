@@ -9,6 +9,7 @@ router.get('/questionAttempt/goto', testAttemptController.goToQuestionAttempt);
 router.post('/answer', testAttemptController.answerQuestion);
 router.post('/questionAttempt/create', testAttemptController.createQuestionAttempt);
 router.get('/complete/:id', testAttemptController.completeTest)
-router.get('/test/result', testAttemptController.testResult)
+router.get('/test/result', testAttemptController.testResult);
+router.post('/submit-feedback', testAttemptController.submitFeedback);
 
 module.exports = router

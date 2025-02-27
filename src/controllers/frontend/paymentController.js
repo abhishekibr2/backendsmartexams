@@ -3,6 +3,9 @@ const ProductCheckout = require('../../models/ProductCheckout');
 const AdminSettings = require('../../models/adminSettings');
 const Cart = require('../../models/Cart');
 const errorLogger = require('../../../logger');
+const { sendEmailOrderSummary } = require('../../services/auth');
+
+
 
 const paymentController = {
 	getAllPayments: async (req, res) => {
@@ -178,10 +181,30 @@ const paymentController = {
 			const productCheckout = new ProductCheckout(checkoutData);
 			const savedCheckout = await productCheckout.save();
 
+
 			// Remove user cart items
 			if (cartItem.cart._id) {
 				await Cart.findByIdAndDelete(cartItem.cart._id);
 			}
+
+			const emailData = {
+				name: `${formData.firstName} ${formData.lastName}`,
+				email: formData.email,
+				phoneNumber: formData.phone,
+			};
+
+			const emailPlaceholders = {
+				OrderSummary: orderSummary,
+			};
+			await sendEmailOrderSummary(emailData, "order_confirmation", emailPlaceholders);
+
+			// const adminEmail = await Users.findOne({ role: "admin" });
+			// console.log(adminEmail)
+			// const adminEmailData = {
+			// 	name: adminEmail.name,
+			// 	email: adminEmail.email,
+			// }
+			// await sendEmailOrderSummary(adminEmailData, "order_confirmation", emailPlaceholders, emailData);
 
 			res.status(201).json({
 				status: true,

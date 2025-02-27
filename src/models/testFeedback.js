@@ -5,6 +5,16 @@ const testFeedbackSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Test',
     },
+    testAttemptId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TestAttempt',
+        required: true
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'users',
+        required: true
+    },
     questionFeedback: {
         like: {
             type: Boolean,

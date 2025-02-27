@@ -19,6 +19,8 @@ const privacyRoute = require('./privacy&policy')
 const tutorialRoute = require('./tutorialClass')
 const whyChooseUsRoute = require('./whyChooseUsCms')
 const examTypesRoutes = require('./examTypesRoutes')
+const aboutpageContentRoutes = require("./aboutpageContentRoutes");
+
 
 
 router.use('/auth', authRoutes);
@@ -34,6 +36,8 @@ router.use('/examTypes', examTypesRoutes);
 router.use('/ebook', ebookRoutes);
 router.use('/faqData', faqRoute);
 router.use('/homepageContent', homepageContentRoutes);
+router.use('/aboutpageContent', aboutpageContentRoutes);
+
 router.use('/get-all-test-packs', publishPackageRoutes);
 router.use('/cart', cartRoutes);
 router.use('/termsCondition', termsConditionRoutes)

@@ -18,6 +18,8 @@ const { JWT_SECRET, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, APP_URL } =
 const captchas = new Map()
 // eslint-disable-next-line import/no-extraneous-dependencies
 // const svgCaptcha = require('svg-captcha');
+const ContactUs = require("../../models/ContactUs");
+const axios = require('axios');
 
 const generateOTP = () => {
 	return Math.floor(1000 + Math.random() * 9000).toString();
@@ -86,7 +88,13 @@ const authController = {
 			});
 
 			await newUser.save();
+			const ADMIN_ID = await Users.findOne({ role: 'admin' }, '_id');
 
+			const contactUsEntry = new ContactUs({
+				createdBy: newUser._id,
+				messages: [{ senderId: ADMIN_ID, message: "Welcome to SmartExam! We are delighted to have you on board. If you need any assistance, feel free to reach out. Wishing you success in your learning journey!" }]
+			});
+			await contactUsEntry.save();
 
 			const userNotificationData = {
 				notification: `Welcome ,  <strong>${name}! </strong> Your account has been successfully created.`,
@@ -112,6 +120,28 @@ const authController = {
 			createNotification(adminNotificationData);
 			await trackUserActivity(newUser._id, 'Registered');
 			await newAccountEmail(newUser);
+
+			// Mailchimp API Call
+			const mailchimpApiKey = process.env.MAILCHIMP_API_KEY;
+			const mailchimpListId = process.env.MAILCHIMP_LIST_ID;
+			const mailchimpServer = process.env.MAILCHIMP_SERVER;
+
+			const mailchimpUrl = `https://${mailchimpServer}.api.mailchimp.com/3.0/lists/${mailchimpListId}/members/`;
+
+			await axios.post(mailchimpUrl, {
+				email_address: email,
+				status: 'subscribed',
+				merge_fields: {
+					FNAME: name,
+					LNAME: lastName
+				}
+			}, {
+				auth: {
+					username: 'smartExams',
+					password: mailchimpApiKey
+				}
+			});
+
 			res.status(201).json({ message: 'Registered successfully', status: true });
 
 		} catch (error) {
@@ -432,14 +462,14 @@ const authController = {
 			user.resetToken = resetToken;
 			await user.save();
 			const resetUrl = `${APP_URL}/reset-password?userId=${user._id}&token=${resetToken}`;
-			setImmediate(async () => {
-				try {
-					await resetPasswordEmail(user, resetUrl);
-					await trackUserActivity(user._id, 'Requested for forget password email.');
-				} catch (emailError) {
-					logError(emailError);
-				}
-			});
+			// setImmediate(async () => {
+			// 	try {
+			await resetPasswordEmail(user, resetUrl);
+			await trackUserActivity(user._id, 'Requested for forget password email.');
+			// } catch (emailError) {
+			// 	logError(emailError);
+			// }
+			// });
 			return res.status(200).json({ message: 'Reset password email sent successfully' });
 		} catch (error) {
 			logError(error);
