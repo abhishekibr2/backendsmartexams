@@ -2,6 +2,10 @@ const homePageModel = require('../../models/HomepageContent');
 const { createUpload } = require('../../utils/multerConfig');
 // eslint-disable-next-line import/no-extraneous-dependencies
 const moment = require('moment-timezone');
+const { promisify } = require('util');
+const path = require('path');
+const fs = require('fs');
+const unlinkAsync = promisify(fs.unlink);
 
 const homePageController = {
 
@@ -102,9 +106,8 @@ const homePageController = {
                     cardCountOne, cardCountTwo, cardCountThree, cardCountFour
                 } = req.body;
 
-                // Handle imageOne
+                // Handle images
                 const imageOne = req.files && req.files['imageOne'] ? req.files['imageOne'][0].filename : null;
-
                 const sectionTwoImageOne = req.files && req.files['sectionTwoImageOne'] ? req.files['sectionTwoImageOne'][0].filename : null;
                 const sectionTwoImageTwo = req.files && req.files['sectionTwoImageTwo'] ? req.files['sectionTwoImageTwo'][0].filename : null;
                 const sectionTwoImageThree = req.files && req.files['sectionTwoImageThree'] ? req.files['sectionTwoImageThree'][0].filename : null;
@@ -112,33 +115,48 @@ const homePageController = {
                 const sectionTwoImageFive = req.files && req.files['sectionTwoImageFive'] ? req.files['sectionTwoImageFive'][0].filename : null;
                 const sectionTwoImageSix = req.files && req.files['sectionTwoImageSix'] ? req.files['sectionTwoImageSix'][0].filename : null;
 
-
-                // Prepare home page data
-                const homePageData = {
-                    headingOne, descriptionOne, imageOne, buttonOne,
-                    headingTwo, subHeadingTwo, sectionTwoTitleOne, sectionTwoTitleTwo, sectionTwoTitleThree, sectionTwoTitleFour, sectionTwoTitleFive, sectionTwoTitleSix,
-                    sectionTwoImageOne, sectionTwoImageTwo, sectionTwoImageThree, sectionTwoImageFour, sectionTwoImageFive, sectionTwoImageSix,
-                    headingThree, subHeadingThree, descriptionThree, stateHeading,
-                    headingFour, descriptionFour,
-                    cardTextOne, cardTextTwo, cardTextThree, cardTextFour, cardCountOne, cardCountTwo, cardCountThree, cardCountFour
-                };
-
+                // Find existing home page content if editId is present
                 let data;
-
                 if (editId) {
-                    data = await homePageModel.findByIdAndUpdate(editId, homePageData, { new: true });
+                    data = await homePageModel.findById(editId);
 
                     if (!data) {
                         return res.status(404).json({ message: 'HomePage content not found for the provided ID', status: false });
                     }
 
-                    if (!imageOne && data.imageOne) { homePageData.imageOne = data.imageOne; }
-                    if (!sectionTwoImageOne && data.sectionTwoImageOne) { homePageData.sectionTwoImageOne = data.sectionTwoImageOne; }
-                    if (!sectionTwoImageTwo && data.sectionTwoImageTwo) { homePageData.sectionTwoImageTwo = data.sectionTwoImageTwo; }
-                    if (!sectionTwoImageThree && data.sectionTwoImageThree) { homePageData.sectionTwoImageThree = data.sectionTwoImageThree; }
-                    if (!sectionTwoImageFour && data.sectionTwoImageFour) { homePageData.sectionTwoImageFour = data.sectionTwoImageFour; }
-                    if (!sectionTwoImageFive && data.sectionTwoImageFive) { homePageData.sectionTwoImageFive = data.sectionTwoImageFive; }
-                    if (!sectionTwoImageSix && data.sectionTwoImageSix) { homePageData.sectionTwoImageSix = data.sectionTwoImageSix; }
+                    // Update only the fields that have new values, retain old values for unchanged fields
+                    const homePageData = {
+                        headingOne, descriptionOne, buttonOne,
+                        headingTwo, subHeadingTwo, sectionTwoTitleOne, sectionTwoTitleTwo, sectionTwoTitleThree, sectionTwoTitleFour, sectionTwoTitleFive, sectionTwoTitleSix,
+                        headingThree, subHeadingThree, descriptionThree, stateHeading,
+                        headingFour, descriptionFour,
+                        cardTextOne, cardTextTwo, cardTextThree, cardTextFour, cardCountOne, cardCountTwo, cardCountThree, cardCountFour,
+                    };
+
+                    // Only set new images if they were uploaded
+                    if (imageOne) homePageData.imageOne = imageOne;
+                    else homePageData.imageOne = data.imageOne; // Keep the existing image if not uploaded
+
+                    if (sectionTwoImageOne) homePageData.sectionTwoImageOne = sectionTwoImageOne;
+                    else homePageData.sectionTwoImageOne = data.sectionTwoImageOne;
+
+                    if (sectionTwoImageTwo) homePageData.sectionTwoImageTwo = sectionTwoImageTwo;
+                    else homePageData.sectionTwoImageTwo = data.sectionTwoImageTwo;
+
+                    if (sectionTwoImageThree) homePageData.sectionTwoImageThree = sectionTwoImageThree;
+                    else homePageData.sectionTwoImageThree = data.sectionTwoImageThree;
+
+                    if (sectionTwoImageFour) homePageData.sectionTwoImageFour = sectionTwoImageFour;
+                    else homePageData.sectionTwoImageFour = data.sectionTwoImageFour;
+
+                    if (sectionTwoImageFive) homePageData.sectionTwoImageFive = sectionTwoImageFive;
+                    else homePageData.sectionTwoImageFive = data.sectionTwoImageFive;
+
+                    if (sectionTwoImageSix) homePageData.sectionTwoImageSix = sectionTwoImageSix;
+                    else homePageData.sectionTwoImageSix = data.sectionTwoImageSix;
+
+                    // Update the database with the modified home page data
+                    data = await homePageModel.findByIdAndUpdate(editId, homePageData, { new: true });
 
                     return res.status(200).json({
                         status: true,
@@ -146,7 +164,16 @@ const homePageController = {
                         data,
                     });
                 } else {
-                    // Create new homepage content
+                    // Create new homepage content if no editId provided
+                    const homePageData = {
+                        headingOne, descriptionOne, imageOne, buttonOne,
+                        headingTwo, subHeadingTwo, sectionTwoTitleOne, sectionTwoTitleTwo, sectionTwoTitleThree, sectionTwoTitleFour, sectionTwoTitleFive, sectionTwoTitleSix,
+                        sectionTwoImageOne, sectionTwoImageTwo, sectionTwoImageThree, sectionTwoImageFour, sectionTwoImageFive, sectionTwoImageSix,
+                        headingThree, subHeadingThree, descriptionThree, stateHeading,
+                        headingFour, descriptionFour,
+                        cardTextOne, cardTextTwo, cardTextThree, cardTextFour, cardCountOne, cardCountTwo, cardCountThree, cardCountFour
+                    };
+
                     data = await homePageModel.create(homePageData);
                     return res.status(201).json({
                         status: true,
@@ -163,90 +190,32 @@ const homePageController = {
 
 
 
-    // addFrontendHomePageContent: async (req, res) => {
-    //     const upload = createUpload('homeImages');
-    //     const contentFields = Array.isArray(req.body.contents)
-    //         ? req.body.contents.map((_, index) => `contents[${index}][image]`)
-    //         : [];
+    deleteImage: async (req, res) => {
+        try {
 
-    //     upload.fields([
-    //         { name: 'imageOne', maxCount: 1 },
-    //         ...contentFields.map((field) => ({ name: field, maxCount: 1 })),
-    //     ])(req, res, async (err) => {
-    //         if (err) {
-    //             console.error('Upload error:', err);
-    //             return res.status(500).json({ message: 'Error uploading files', status: false });
-    //         }
+            const homepageId = req.body.editId;
+            // Find brand by dynamic ID
+            const banner = await homePageModel.findById(homepageId);
+            if (!banner) {
+                return res.status(404).json({ message: 'banner not found', status: false });
+            }
 
-    //         try {
-    //             const {
-    //                 headingOne, buttonOne, descriptionOne,
-    //                 editId,
-    //                 headingTwo, subHeadingTwo,
-    //                 sectionTwoTitleOne, sectionTwoTitleTwo, sectionTwoTitleThree, sectionTwoTitleFour, sectionTwoTitleFive, sectionTwoTitleSix,
-    //                 headingThree, subHeadingThree, descriptionThree, subDescription, stateHeading,
-    //                 headingFour, descriptionFour, cardTextOne, cardTextTwo, cardTextThree, cardTextFour,
-    //                 cardCountOne, cardCountTwo, cardCountThree, cardCountFour, contents
-    //             } = req.body;
-
-    //             // Handle imageOne
-    //             const imageOne = req.files && req.files['imageOne']
-    //                 ? req.files['imageOne'][0].filename
-    //                 : null;
-
-    //             // Validate and process contents array
-    //             const validatedContents = Array.isArray(contents) ? contents.map((content, index) => {
-    //                 if (req.files && req.files[`contents[${index}][image]`]) {
-    //                     content.image = req.files[`contents[${index}][image]`][0].filename;
-    //                 }
-    //                 return content;
-    //             }) : [];
+            const filePath = path.join(__dirname, '../../storage/bannerImages/original', banner.image);
+            if (fs.existsSync(filePath)) {
+                await unlinkAsync(filePath);
+            } else {
+                console.log(`File not found: ${filePath}`);
+            }
+            banner.image = null;
 
 
-    //             // Prepare home page data
-    //             const homePageData = {
-    //                 headingOne, descriptionOne, imageOne, buttonOne,
-    //                 headingTwo, subHeadingTwo, sectionTwoTitleOne, sectionTwoTitleTwo, sectionTwoTitleThree, sectionTwoTitleFour, sectionTwoTitleFive, sectionTwoTitleSix,
-    //                 headingThree, subHeadingThree, descriptionThree, subDescription, stateHeading,
-    //                 headingFour, descriptionFour,
-    //                 cardTextOne, cardTextTwo, cardTextThree, cardTextFour, cardCountOne, cardCountTwo, cardCountThree, cardCountFour,
-    //                 contents: validatedContents,
-    //             };
-
-
-    //             let data;
-
-    //             if (editId) {
-    //                 data = await homePageModel.findByIdAndUpdate(editId, homePageData, { new: true });
-
-    //                 if (!data) {
-    //                     return res.status(404).json({ message: 'HomePage content not found for the provided ID', status: false });
-    //                 }
-
-    //                 if (!imageOne && data.imageOne) {
-    //                     homePageData.imageOne = data.imageOne;
-    //                 }
-
-    //                 return res.status(200).json({
-    //                     status: true,
-    //                     message: 'HomePage Content updated successfully',
-    //                     data,
-    //                 });
-    //             } else {
-    //                 // Create new homepage content
-    //                 data = await homePageModel.create(homePageData);
-    //                 return res.status(201).json({
-    //                     status: true,
-    //                     message: 'HomePage Content added successfully',
-    //                     data,
-    //                 });
-    //             }
-    //         } catch (error) {
-    //             console.error(error);
-    //             return res.status(500).json({ message: error.message || 'Unexpected error', status: false });
-    //         }
-    //     });
-    // },
+            await banner.save();
+            res.status(200).json({ status: true, message: 'Banner deleted successfully' });
+        } catch (error) {
+            console.log(error, "error")
+            res.status(500).json({ status: false, message: 'Internal Server Error' });
+        }
+    },
 
 
 

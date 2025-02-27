@@ -57,9 +57,13 @@ const eBookController = {
                 };
                 const modifiedSlug = await checkAndModifySlug(slug, EBook_id);
                 // Calculate discounted price
-                const parsedPrice = parseFloat(price) || 0;
-                const parsedDiscount = parseFloat(discount) || 0;
+                let parsedPrice = parseFloat(price) || 0;
+                let parsedDiscount = parseFloat(discount) || 0;
                 const discountedPrice = parsedPrice - (parsedPrice * parsedDiscount / 100);
+                if (isFree === 'yes') {
+                    parsedPrice = 0;
+                    parsedDiscount = 0;
+                }
 
                 const eBookData = {
                     pdfFile: processFile('pdfFile'),

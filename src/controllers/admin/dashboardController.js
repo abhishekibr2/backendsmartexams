@@ -3,7 +3,7 @@ const Blog = require('../../models/Blog');
 const test = require('../../models/test');
 const ebook = require('../../models/ebook');
 const Package = require('../../models/packageModel');
-const Question = require('../../models/Question');
+const ExamType = require('../../models/examType');
 const testConductedBy = require('../../models/testConductedBy');
 const testFeedback = require('../../models/testFeedback');
 const questionFeedbackModel = require('../../models/questionFeedbackModel');
@@ -55,16 +55,16 @@ const dashboardController = {
 
     dashboardCounts: async (req, res) => {
         try {
-            const [userCount, blogCount, testCount, packageCount, questionsCount, testConductedByCount, packageFeedbackCount] = await Promise.all([
+            const [userCount, blogCount, testCount, packageCount, testConductedByCount, packageFeedbackCount, examTypeCount] = await Promise.all([
                 User.countDocuments({ status: 'active' }),
                 Blog.countDocuments({ status: 'active' }),
                 test.countDocuments({ status: 'active' }),
                 Package.countDocuments(),
-                Question.countDocuments(),
                 testConductedBy.countDocuments({ status: 'active' }),
-                packageFeedback.countDocuments(),
+                packageFeedback.countDocuments(), ExamType.countDocuments({ status: 'active' })
 
             ]);
+
             const studentCount = await User.countDocuments({ role: 'student', status: 'active' });
             const questionFeedbackModelCount = await questionFeedbackModel.countDocuments();
             const testFeedbackCount = await testFeedback.countDocuments();
@@ -78,7 +78,10 @@ const dashboardController = {
                     $unwind: '$orderSummary.eBook'
                 },
                 {
-                    $count: 'totalEbooks'
+                    $group: {
+                        _id: null,
+                        totalEbookPrice: { $sum: '$orderSummary.eBook.eBookDiscountPrice' }
+                    }
                 }
             ]);
             const totalPackage = await productCheckouts.aggregate([
@@ -91,19 +94,27 @@ const dashboardController = {
                 {
                     $group: {
                         _id: null,
-                        totalPackagePrice: { $sum: '$orderSummary.package.packagePrice' }
+                        totalPackagePrice: { $sum: '$orderSummary.package.packageDiscountPrice' }
                     }
                 }
             ]);
-            const PackageSold = totalPackage.length > 0 ? totalPackage[0].totalPackagePrice : 0;
+            const PackageSold = totalPackage.length > 0
+                ? totalPackage.reduce((sum, pkg) => sum + Number(pkg.totalPackagePrice), 0).toFixed(1)
+                : "0.00";
+
+            const ebookSold = totalEbooksCount.length > 0
+                ? totalEbooksCount.reduce((sum, ebook) => sum + Number(ebook.totalEbookPrice), 0).toFixed(1)
+                : "0.00";
+
+
             const counts = {
                 users: userCount,
                 blogs: blogCount,
                 test: testCount,
-                ebook: totalEbooksCount,
+                ebook: ebookSold,
                 publishEbookCount: publishEbookCount,
                 package: packageCount,
-                questions: questionsCount,
+                examType: examTypeCount,
                 testConductedBy: testConductedByCount,
                 packageFeedback: packageFeedbackCount,
                 questionFeedbackModel: questionFeedbackModelCount,

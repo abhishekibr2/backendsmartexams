@@ -29,6 +29,7 @@ const faqRoutes = require('./faqRoutes')
 const allOrdersRoutes = require('./allOrdersRoutes')
 const durationRoutes = require('./durationRoutes')
 const homepageContentRoutes = require("./homePageContentRoutes");
+const aboutpageContentRoutes = require("./aboutPageContentRoutes");
 const emailContentRoutes = require("./emailContentRoutes");
 
 const termsConditionRoutes = require('./termsConditionRoutes');
@@ -66,6 +67,7 @@ router.use('/faq', faqRoutes)
 router.use('/all-orders', allOrdersRoutes)
 router.use('/duration', durationRoutes)
 router.use('/homepageContent', homepageContentRoutes);
+router.use('/aboutpageContent', aboutpageContentRoutes);
 router.use('/emailContent', emailContentRoutes);
 
 router.use('/termsCondition', termsConditionRoutes)

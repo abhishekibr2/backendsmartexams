@@ -37,7 +37,13 @@ const sendEmail = async (user, templateType, extraPlaceholders = {}) => {
 		let emailContent = emailTemplate.template
 			.replace(/\*\|Name\|\*/g, user.name)
 			.replace(/\*\|Email\|\*/g, user.email)
-			.replace(/\*\|Phone\|\*/g, user.phoneNumber);
+			.replace(/\*\|Phone\|\*/g, user.phoneNumber)
+		if (extraPlaceholders.OrderSummary) {
+			emailContent = emailContent
+				.replace(/\*\|Price\|\*/g, extraPlaceholders.OrderSummary.totalAmount ? extraPlaceholders.OrderSummary.totalAmount : '')
+				.replace(/\*\|Title\|\*/g, extraPlaceholders.OrderSummary.eBook.length > 0 ? 'Ebook title' : 'Package Name')
+				.replace(/\*\|orderName\|\*/g, extraPlaceholders.OrderSummary.eBook.length > 0 ? extraPlaceholders.OrderSummary.eBook[0].eBookTitle : extraPlaceholders.OrderSummary.package[0].packageName);
+		}
 
 		// Replace additional placeholders
 		for (const [key, value] of Object.entries(extraPlaceholders)) {
@@ -78,19 +84,23 @@ const passwordConfirmationEmail = async (user) => {
 };
 // send Email for offer
 const sendEmailForOfferExamType = async (user) => {
-	let emailSubject = await EmailTemplate.findOne({ _id: '67948b8a2efceb504e07b372' });
 	const userData = user.reduce((acc, item) => {
 		acc[item.id] = item;
 		return acc;
 	}, {});
 	Object.values(userData).forEach(async (userItem) => {
-		await sendEmail(userItem, emailSubject.type);
+		await sendEmail(userItem, "specialOffer");
 	});
+};
+
+const sendEmailOrderSummary = async (user, templateType, placeholders) => {
+	await sendEmail(user, "buyPackageAndBooks", placeholders);
 };
 
 module.exports = {
 	newAccountEmail,
 	resetPasswordEmail,
 	passwordConfirmationEmail,
-	sendEmailForOfferExamType
+	sendEmailForOfferExamType,
+	sendEmailOrderSummary
 };

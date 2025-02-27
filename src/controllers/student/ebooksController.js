@@ -77,7 +77,7 @@ const ebooksController = {
     singleEbook: async (req, res) => {
         try {
             const id = req.params.id;
-            const singleBlog = await Ebook.findOne({ _id: id });
+            const singleBlog = await Ebook.findOne({ _id: id }).populate('stateId', 'title');
             const randomBooks = await Ebook.aggregate([{ $sample: { size: 6 } }]);
             if (!singleBlog) {
                 return res.status(404).json({ status: false, message: 'ebook not found' });
@@ -107,6 +107,25 @@ const ebooksController = {
             logError(error);
             res.status(500).json({ status: false, message: 'Internal Server Error' });
         }
-    }
+    },
+    getAllEBooks: async (req, res) => {
+        try {
+            const userId = req.params.userId;
+            console.log(userId, 'here user Id ')
+            const purchasedBooks = await ProductCheckout.find({ userId: userId })
+                .select('orderSummary.eBook')
+            const eBookIds = purchasedBooks
+                .flatMap((book) => book.orderSummary.eBook)
+                .map((ebook) => ebook.eBookId);
+            const eBooks = await Ebook.find({ $or: [{ isFree: 'yes' }, { _id: { $in: eBookIds } }] }).populate('examTypeId').populate('stateId').populate('gradeId').populate('subjectId');
+            res.status(200).json({ eBooks });
+        } catch (error) {
+            logError(error);
+            res.status(500).json({
+                message: 'An error occurred while processing the request.',
+                error: error.message,
+            });
+        }
+    },
 }
 module.exports = ebooksController

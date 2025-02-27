@@ -17,5 +17,6 @@ router.post('/qualityChecked/:id', packageController.updateQualityChecked);
 router.put('/add-features/:packageId', packageController.saveFeature);
 router.put('/update-feature/:packageId/:featureId', packageController.UpdateFeature);
 router.delete('/delete-feature/:packageId/:featureId', packageController.deleteFeature);
+router.get('/package-for-essay', packageController.GetAllPackagesForEssay);
 
 module.exports = router;

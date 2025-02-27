@@ -14,7 +14,7 @@ const tutorialController = {
             const tutorialData = {
                 title: req.body.title,
                 description: req.body.description,
-                image: req.file ? req.file.filename : req.body.image,
+                image: req.file ? req.file.filename : req.body.image = req.body.image === 'undefined' || req.body.image === undefined ? null : req.body.image,
 
                 mainHeading: req.body.mainHeading,
 

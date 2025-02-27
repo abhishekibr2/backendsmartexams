@@ -57,6 +57,25 @@ const packageController = {
                     packageDiscountPrice = price - (price * (discount / 100));
                 }
 
+                // Default Features
+                const defaultFeatures = [
+                    "Unlimited Test Attempts",
+                    "1 x Vocabulary Booklet",
+                    "2 x Writing Tests with feedback",
+                    "Thinking Skills Course",
+                    "Reading Course",
+                    "Detailed answer explanations",
+                    "Free Vocabulary Book",
+                    "15 Exam-Style Tests",
+                    "Reasoning Test",
+                    "Test marked with Feedback",
+                    "Reasoning Test",
+                    "Comprehension Test"
+                ].map(feature => ({
+                    featureName: feature,
+                    availability: "available"
+                }));
+
                 // Prepare the package data
                 const packageData = {
                     packageName,
@@ -89,6 +108,11 @@ const packageController = {
                     createdBy: req.user._id,
                     packageDiscountPrice: packageDiscountPrice
                 };
+
+                if (!packageId) {
+                    packageData.features = defaultFeatures;
+                    packageData.tag = 'Most Popular';
+                }
 
                 // Validate if the package name is unique (excluding the current package if updating)
                 const duplicateCheckQuery = packageId
@@ -168,6 +192,30 @@ const packageController = {
         }
     },
 
+    GetAllPackagesForEssay: async (req, res) => {
+        try {
+            // Fetch packages with hasEssay = 'yes'
+            const packages = await Package
+                .find({ hasEssay: 'yes' })
+                .populate('state testConductedBy subjectsInPackage examType packageType packageDuration')
+                .populate('grade', 'gradeLevel');
+
+            // Add total essay count for each package
+            const packagesWithEssayCount = await Promise.all(
+                packages.map(async (pkg) => {
+                    const essayCount = await PackageEssay.countDocuments({ packageId: pkg._id });
+                    return { ...pkg.toObject(), totalEssayCount: essayCount };
+                })
+            );
+
+            res.status(200).json({ status: true, data: packagesWithEssayCount });
+        } catch (error) {
+            errorLogger(error);
+            return res.status(500).json({ status: false, message: 'Internal Server Error' });
+        }
+    },
+
+
     getTestsOfpackages: async (req, res) => {
         const { id } = req.params;
         res.status(200).json(id)
@@ -183,6 +231,14 @@ const packageController = {
 
             const packageId = new mongoose.Types.ObjectId(packageIds[0]);
             const isAssignedInTest = await tests.find({ packageName: { $in: packageIds } });
+            const isAssignedInEssay = await PackageEssay.find({ packageId: packageId });
+
+            if (isAssignedInEssay.length) {
+                return res.status(400).json({
+                    status: false,
+                    message: 'Package cannot be deleted as it is assigned to an Essay',
+                });
+            }
 
             if (isAssignedInTest.length) {
                 return res.status(400).json({
@@ -487,6 +543,17 @@ const packageController = {
             features = features.filter(feature => feature.featureName.trim() && feature.availability.trim());
         }
 
+        const existingPackage = await Package.findById(packageId);
+
+        if (!existingPackage) {
+            return res.status(404).json({ message: "Package not found" });
+        }
+
+        const totalFeatures = existingPackage.features.length + features.length;
+        if (totalFeatures > 12) {
+            return res.status(400).json({ message: "You can add up to 12 features only." });
+        }
+
         const updateData = {
             tag,
             packageColor,
@@ -516,14 +583,19 @@ const packageController = {
 
     UpdateFeature: catchErrors(async (req, res) => {
         const { packageId, featureId } = req.params;
-        const { availability } = req.body;
+        const { availability, featureName } = req.body;
 
         const updatedPackage = await Package.findOneAndUpdate(
             { _id: packageId, "features._id": featureId },
-            { $set: { "features.$.availability": availability } },
+            // { $set: { "features.$.availability": availability } },
+            {
+                $set: {
+                    "features.$.availability": availability,
+                    "features.$.featureName": featureName
+                }
+            },
             { new: true }
         );
-
         if (!updatedPackage) {
             return res.status(404).json({
                 message: "Package or feature not found"

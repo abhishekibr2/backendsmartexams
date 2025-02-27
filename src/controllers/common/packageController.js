@@ -8,7 +8,7 @@ const packageController = {
             const { stateId, examTypeId } = req.query;
 
             // Construct filter object based on the presence of stateId and examTypeId
-            const filter = { isActive: "yes" };
+            const filter = { isPublished: true };
 
             // Only add state and examType filters if their corresponding query params are provided
             if (stateId) {

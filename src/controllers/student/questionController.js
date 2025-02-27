@@ -5,6 +5,23 @@ const Question = require("../../models/Question");
 const questionController = {
     questionsGroupByTopic: catchErrors(async (req, res) => {
         try {
+            const {
+                grade,
+                complexity,
+                //  limit
+            } = req.query;
+
+            const matchQuery = {
+                comprehensionId: null
+            };
+
+            if (grade) {
+                matchQuery.grade = grade;
+            }
+            if (complexity) {
+                matchQuery["complexityId._id"] = complexity;
+            }
+
             const questionsGroupedByTopic = await Question.aggregate([
                 {
                     $match: {
@@ -15,6 +32,7 @@ const questionController = {
                     $group: {
                         _id: "$topic",
                         topicSlug: { $first: "$topicSlug" },
+
                         subTopic: {
                             $addToSet: {
                                 questionType: "$questionType",
@@ -25,7 +43,11 @@ const questionController = {
                         },
                         count: { $sum: 1 }
                     }
-                }
+                },
+                {
+                    $sort: { count: -1 }
+                },
+                // ...(limit ? [{ $limit: parseInt(limit) }] : [])
             ]);
 
             const comprehensionGroupedByTopic = await Comprehension.aggregate([
@@ -55,7 +77,8 @@ const questionController = {
                 error: error.message
             });
         }
-    })
+    }),
+
 }
 
 module.exports = questionController;

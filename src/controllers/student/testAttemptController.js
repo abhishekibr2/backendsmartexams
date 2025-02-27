@@ -2,14 +2,48 @@ const { catchErrors } = require("../../helper/errorHandler");
 const AttemptQuestion = require("../../models/AttemptQuestion");
 const Question = require("../../models/Question");
 const TestAttempt = require("../../models/TestAttempt");
+const TestAttemptFeedBack = require('../../models/testAttemptFeedBack');
+const User = require('../../models/Users');
+const AdminSetting = require('../../models/adminSettings');
+const ejs = require('ejs');
+const nodemailer = require('nodemailer');
+const path = require('path');
+const { MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS } = require('../../config/envConfig');
+
+const sendFeedbackMail = async (newFeedback, user) => {
+    try {
+        const templatePath = path.resolve(__dirname, '../../', 'views/emails', 'feedback_mail.ejs');
+        const admin = await AdminSetting.findOne();
+        const htmlContent = await ejs.renderFile(templatePath, { newFeedback, user, admin });
+
+        const mailOptions = {
+            from: MAIL_FROM_ADDRESS,
+            to: admin.email,
+            subject: "New Feedback Received",
+            html: htmlContent
+        };
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: MAIL_USERNAME,
+                pass: MAIL_PASSWORD
+            }
+        });
+
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error("Error sending feedback email:", error);
+    }
+};
 
 const testAttemptController = {
     createTestAttempt: async (req, res) => {
         try {
-            const attemptNumber = TestAttempt.find({
+            const attemptNumber = await TestAttempt.countDocuments({
                 userId: req.user._id,
                 testId: req.body.testId
-            }).countDocuments();
+            });
 
             const newTestAttempt = await TestAttempt.create({
                 userId: req.user._id,
@@ -20,8 +54,72 @@ const testAttemptController = {
                 status: 'in-progress'
             });
 
+            await newTestAttempt.populate([
+                {
+                    path: 'test',
+                    populate: [
+                        {
+                            path: 'questions',
+                            populate: [
+                                { path: 'questionOptions' },
+                                { path: 'complexityId' },
+                            ],
+                        },
+                        {
+                            path: 'comprehensions',
+                            populate: {
+                                path: 'questionId',
+                                populate: [
+                                    { path: 'questionOptions' },
+                                    { path: 'comprehensionId' }
+                                ],
+                            },
+                        },
+                    ]
+                }
+            ]);
+
+            let questionIds = [];
+
+            const questionsMap = new Map(newTestAttempt.test.questions.map(q => [q._id.toString(), q]));
+
+            newTestAttempt.test.questionOrder.forEach(questionId => {
+                if (!questionsMap.has(questionId)) {
+                    newTestAttempt.test.comprehensions.forEach(comprehension => {
+                        comprehension.questionId.forEach(item => {
+                            if (!questionsMap.has(item._id.toString())) {
+                                questionsMap.set(item._id.toString(), item);
+                            }
+                        });
+                    });
+                }
+            });
+
+            newTestAttempt.test.questions = Array.from(questionsMap.values());
+            questionIds = newTestAttempt.test.questions.map(q => q._id);
+
+            newTestAttempt.test.comprehensions.forEach(comprehension => {
+                comprehension.questionId.forEach(item => {
+                    questionIds.push(item._id);
+                });
+            });
+
+            const attemptQuestions = questionIds.map(questionId => ({
+                testAttemptId: newTestAttempt._id,
+                questionId: questionId,
+                status: 'unanswered',
+            }));
+
+            const insertedAttemptQuestions = await AttemptQuestion.insertMany(attemptQuestions);
+            const attemptQuestionIds = insertedAttemptQuestions.map(aq => aq._id);
+
+            newTestAttempt.attemptQuestions = attemptQuestionIds;
+            await newTestAttempt.save();
+
             res.status(201).json({ status: true, data: newTestAttempt });
+
         } catch (error) {
+            console.error(error);
             res.status(500).json({ status: false, message: 'Failed to create test attempt' });
         }
     },
@@ -146,7 +244,7 @@ const testAttemptController = {
     },
 
     answerQuestion: catchErrors(async (req, res) => {
-        const { answerId, questionId, testAttemptId, status, isFlagged } = req.body;
+        const { answerId, questionId, testAttemptId, status, isFlagged, startTime } = req.body;
 
         const answer = await Question.findById(questionId).populate('questionOptions').select('questionOptions');
 
@@ -173,15 +271,23 @@ const testAttemptController = {
                     isCorrect: isAnswerCorrect,
                     isFlagged,
                     updatedAt: new Date(),
-                    endTime: new Date()
+                    endTime: new Date(),
+                    startTime
                 }
             },
             { new: true, upsert: true }
-        );
+        )
+            .populate({
+                path: 'questionId',
+                select: 'complexityId topic subTopic',
+                populate: {
+                    path: 'complexityId'
+                }
+            });
 
         const testAttempt = await TestAttempt.findByIdAndUpdate(
             questionAttempt.testAttemptId,
-            { attemptQuestions: questionAttempt._id },
+            { $addToSet: { attemptQuestions: questionAttempt._id } },
             { new: true }
         ).populate('test');
 
@@ -352,28 +458,59 @@ const testAttemptController = {
                         path: 'comprehensions',
                         populate: {
                             path: 'questionId',
-                            populate: 'questionOptions',
+                            populate: 'questionOptions comprehensionId',
                         },
                     },
                 ],
-            });
+            }).lean();
 
-        const questionAttempts = await AttemptQuestion
-            .find({ testAttemptId: id })
+        if (!testAttempt) {
+            return res.status(404).json({ message: 'Test Attempt not found' });
+        }
+
+        const { test } = testAttempt;
+        if (!test) {
+            return res.status(404).json({ message: 'Test not found' });
+        }
+
+        const questionsMap = new Map(test.questions.map(q => [q._id.toString(), q]));
+
+        test.questionOrder.forEach(questionId => {
+            if (!questionsMap.has(questionId)) {
+                test.comprehensions.forEach(comprehension => {
+                    comprehension.questionId.forEach(item => {
+                        if (!questionsMap.has(item._id.toString())) {
+                            questionsMap.set(item._id.toString(), item);
+                        }
+                    });
+                });
+            }
+        });
+
+        test.questions = Array.from(questionsMap.values());
+        test.questionIds = test.questions.map(q => q._id);
+
+        test.comprehensions.forEach(comprehension => {
+            comprehension.questionId.forEach(item => {
+                test.questionIds.push(item._id);
+            });
+        });
+
+        test.totalAddedQuestion = test.questions.length + test.comprehensions.reduce((sum, item) => sum + item.questionId.length, 0);
+
+        const questionAttempts = await AttemptQuestion.find({ testAttemptId: id })
             .populate({
                 path: 'questionId',
-                populate: 'complexityId',
-                select: 'complexityId topic subTopic'
+                populate: 'complexityId'
             });
 
-        return res.status(201).json({ testAttempt, questionAttempts });
+        return res.status(200).json({ testAttempt, questionAttempts });
     }),
 
     completeTest: catchErrors(async (req, res) => {
         const { id } = req.params;
-        const { status = 'completed' } = req.query;
+        const { status = 'completed', isCompleted = false } = req.query;
 
-        // Find the test attempt by id to access the startTime
         const testAttempt = await TestAttempt.findById(id);
 
         if (!testAttempt) {
@@ -383,7 +520,6 @@ const testAttemptController = {
             });
         }
 
-        // Ensure startTime exists before proceeding
         if (!testAttempt.startTime) {
             return res.status(400).json({
                 status: false,
@@ -399,7 +535,7 @@ const testAttemptController = {
 
         const updatedTestAttempt = await TestAttempt.findByIdAndUpdate(id, {
             $set: {
-                isCompleted: true,
+                isCompleted: isCompleted,
                 endTime: endTime,
                 timeTaken: timeTakenInMinutes,
                 status: status
@@ -454,7 +590,38 @@ const testAttemptController = {
                 error: error.message,
             });
         }
-    })
+    }),
+
+    submitFeedback: async (req, res) => {
+        try {
+            const { userId, questionFeedback, difficultyFeedback, technicalFeedback, comment, testAttemptId, testId } = req.body;
+
+            const newFeedback = new TestAttemptFeedBack({
+                userId,
+                questionFeedback,
+                difficultyFeedback,
+                technicalFeedback,
+                comment,
+                testAttemptId,
+                testId
+            });
+
+            const savedFeedback = await newFeedback.save();
+            res.status(201).json({
+                message: 'Feedback submitted successfully!',
+                feedback: savedFeedback
+            });
+
+            const user = await User.findById(userId);
+
+            await sendFeedbackMail(newFeedback, user)
+
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            res.status(400).json({ message: 'Error submitting feedback', error: error.message });
+        }
+
+    }
 
 }
 

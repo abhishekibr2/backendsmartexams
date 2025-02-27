@@ -68,7 +68,7 @@ const headerMenuController = {
     getSingleBrandDetails: async (req, res) => {
         try {
             const brand = await Settings.findOne().select(
-                'logo favIcon email phone socialLinks waterMarkIcon address brandName time  footerDescriptionOne footerDescriptionTwo footerSubHeadingOne footerSubHeadingTwo'
+                'logo favIcon email phone socialLinks waterMarkIcon address brandName time  footerDescriptionOne footerDescriptionTwo footerSubHeadingOne footerSubHeadingTwo whatsApp'
             ); res.status(200).json({ status: true, data: brand });
         } catch (error) {
             errorLogger(error);

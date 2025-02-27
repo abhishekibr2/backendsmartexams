@@ -10,7 +10,7 @@ const {
     searchQuestion,
     exportQuestion,
     takeOwnership,
-    takeBulkOwnership
+    takeBulkOwnership, updataQuestionTopic
 } = require("../../controllers/admin/questionController");
 const questionController = require("../../controllers/student/questionController");
 const router = express.Router();
@@ -28,8 +28,7 @@ router.get('/usedin/:questionId', usedIn)
 router.get('/search/topic', searchQuestion)
 router.get('/data/export', exportQuestion)
 router.get('/list/group', questionController.questionsGroupByTopic)
-
-
+router.post('/updateTopics', updataQuestionTopic)
 
 
 module.exports = router

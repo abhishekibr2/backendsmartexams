@@ -24,7 +24,7 @@ const subjectController = {
             const { subjectName, createdBy, updateId } = req.body;
 
             // Sanitize subject name
-            const sanitizedSubjectName = subjectName.trim().toLowerCase();
+            const sanitizedSubjectName = subjectName.trim();
 
             const duplicateCheckQuery = updateId
                 ? { subjectName: sanitizedSubjectName, _id: { $ne: updateId } }

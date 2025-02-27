@@ -1,6 +1,8 @@
 const Package = require("../../models/packageModel");
 const ProductCheckouts = require("../../models/ProductCheckout")
 const moment = require('moment');
+const TestAttempt = require("../../models/TestAttempt");
+const mongoose = require("mongoose");
 
 const packageController = {
     freePackage: async (req, res) => {
@@ -18,29 +20,50 @@ const packageController = {
                 .populate({
                     path: 'tests',
                     populate: { path: 'subject grade state examType' }
-                });
+                }).lean();
+
+            if (freePackage.length > 0) {
+                for (const test of freePackage) {
+                    for (const item of test.tests) {
+                        const testAttempt = await TestAttempt.findOne({
+                            test: item._id,
+                            user: new mongoose.Types.ObjectId(req.user.userId)
+                        })
+                            .sort({ createdAt: -1 })
+                            .lean();
+
+                        item.testAttempt = testAttempt;
+                    }
+                }
+            }
+
             res.status(200).json({ success: true, data: freePackage });
         } catch (err) {
             console.error('Error in freePackage:', err);
             res.status(500).json({ success: false, message: 'Server Error' });
         }
     },
+
     getPackages: async (req, res) => {
         try {
             const { userId } = req.query;
-
             const currentDate = moment().toDate();
+
             const packages = await ProductCheckouts
-                .find({ userId: userId, "orderSummary.package.packageValidity.calculatedTime": { $gte: currentDate } })
+                .find({
+                    userId: userId,
+                    "orderSummary.package.packageValidity.calculatedTime": { $gte: currentDate }
+                })
                 .populate({
                     path: 'orderSummary.package',
                     populate: {
                         path: 'packageId',
                         model: 'Package',
+                        match: { hasEssay: 'yes' }, // Filter packages where hasEssay is 'yes'
                         populate: {
                             path: 'tests',
                             populate: {
-                                path: 'subject'
+                                path: 'subject grade state testConductedBy examType'
                             }
                         }
                     }
@@ -50,6 +73,7 @@ const packageController = {
             return res.status(500).json({ success: false, message: 'Server Error' });
         }
     },
+
     testWithPackage: async (req, res) => {
         try {
             const { packageId, testId } = req.query;
